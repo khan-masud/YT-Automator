@@ -1,0 +1,32 @@
+# Environment & Confidential Credentials
+.env
+client_secrets.json
+youtube_token.json
+*.pem
+*.key
+
+# Python Virtual Environment & Caches
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Media Outputs & Execution Logs
+output/
+logs/*.log
+used_topics.txt
+assets/
+*.mp4
+*.mp3
+*.srt
+
+# IDE & Operating System Files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

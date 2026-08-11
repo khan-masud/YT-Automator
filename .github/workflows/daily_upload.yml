@@ -1,0 +1,59 @@
+name: Daily YouTube Automation Pipeline
+
+on:
+  schedule:
+    # Triggers daily at 12:00 UTC (6:00 PM BST)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Enables manual trigger button on GitHub UI
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Configure Environment & Secret Credentials
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_CLIENT_SECRETS: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
+        run: |
+          python -c "
+import os
+
+with open('.env', 'w', encoding='utf-8') as f:
+    f.write(f'GEMINI_API_KEY={os.getenv(\"GEMINI_API_KEY\", \"\")}\n')
+    f.write(f'PEXELS_API_KEY={os.getenv(\"PEXELS_API_KEY\", \"\")}\n')
+    f.write('CHANNEL_NICHE=interesting facts and educational content for a general audience\n')
+    f.write('DAILY_SHORTS_COUNT=1\n')
+    f.write('DAILY_LONGFORM_COUNT=1\n')
+    f.write('YOUTUBE_PRIVACY_STATUS=private\n')
+
+with open('client_secrets.json', 'w', encoding='utf-8') as f:
+    f.write(os.getenv('YOUTUBE_CLIENT_SECRETS', ''))
+
+with open('youtube_token.json', 'w', encoding='utf-8') as f:
+    f.write(os.getenv('YOUTUBE_TOKEN', ''))
+"
+
+      - name: Execute Daily Video Pipeline
+        run: |
+          python main.py
