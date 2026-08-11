@@ -16,13 +16,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.11 with Pip Caching
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
 
-      - name: Install FFmpeg
+      - name: Cache FFmpeg Binary
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/bin/ffmpeg
+            /usr/bin/ffprobe
+          key: ffmpeg-binary-ubuntu-latest
+
+      - name: Install FFmpeg (Cache Fallback)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
@@ -30,6 +41,14 @@ jobs:
       - name: Install Python Dependencies
         run: |
           pip install -r requirements.txt
+
+      - name: Cache & Restore SQLite Database State
+        uses: actions/cache@v4
+        with:
+          path: data/yt_automator.db
+          key: sqlite-db-v1-${{ github.run_id }}
+          restore-keys: |
+            sqlite-db-v1-
 
       - name: Configure Environment & Secret Credentials
         env:

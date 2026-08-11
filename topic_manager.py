@@ -11,6 +11,7 @@ Processed entries are moved from topics_queue.txt to used_topics.txt.
 """
 from typing import Optional, Dict, Any, List
 import config
+import db_manager
 
 
 def _read_lines() -> List[str]:
@@ -37,9 +38,20 @@ def _mark_used(raw_line: str) -> None:
 def get_next_manual_entry(video_format: str) -> Optional[Dict[str, Any]]:
     """
     Fetches the next matching manual topic or script entry for the specified video format.
-    Removes the entry from the queue and archives it to used_topics.txt.
-    Returns None if no matching manual entry exists.
+    Checks SQLite database queue first, falling back to topics_queue.txt.
     """
+    # 1. Check SQLite database queue first
+    db_entry = db_manager.get_next_manual_entry(video_format)
+    if db_entry:
+        db_manager.mark_queue_entry_status(db_entry["id"], "completed")
+        return {
+            "type": db_entry["entry_type"],
+            "format": db_entry["video_format"],
+            "content": db_entry["content"],
+            "db_id": db_entry["id"]
+        }
+
+    # 2. Check text file topics_queue.txt
     lines = _read_lines()
     remaining: List[str] = []
     found: Optional[Dict[str, Any]] = None
@@ -72,7 +84,8 @@ def get_next_manual_entry(video_format: str) -> Optional[Dict[str, Any]]:
 
 
 def add_topic(content: str, video_format: str = "short", entry_type: str = "topic") -> None:
-    """Programmatically appends a new topic or script entry to the queue."""
+    """Programmatically enqueues a new topic or script entry to both DB and topics_queue.txt."""
+    db_manager.enqueue_manual_entry(entry_type, video_format, content)
     lines = _read_lines()
     lines.append(f"{entry_type}|{video_format}|{content}")
     _write_lines(lines)

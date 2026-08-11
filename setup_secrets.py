@@ -47,7 +47,8 @@ def setup_secrets() -> None:
         f.write("CHANNEL_NICHE=interesting facts and educational content for a general audience\n")
         f.write("DAILY_SHORTS_COUNT=1\n")
         f.write("DAILY_LONGFORM_COUNT=1\n")
-        f.write("YOUTUBE_PRIVACY_STATUS=private\n")
+        privacy_status = os.getenv("YOUTUBE_PRIVACY_STATUS", "public").strip()
+        f.write(f"YOUTUBE_PRIVACY_STATUS={privacy_status}\n")
 
     # Write client_secrets.json
     with open("client_secrets.json", "w", encoding="utf-8") as f:

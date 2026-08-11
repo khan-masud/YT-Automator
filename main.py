@@ -77,11 +77,13 @@ def produce_one_video(video_format: str) -> str:
     manual = topic_manager.get_next_manual_entry(video_format)
     if manual and manual["type"] == "script":
         logger.info(f"[{run_id}] Manual script entry found. Processing custom script...")
-        script_data = script_generator.generate_script(manual["content"][:60], video_format)
+        topic = manual["content"][:60]
+        script_data = script_generator.generate_script(topic, video_format)
         script_data["script"] = manual["content"]
     elif manual and manual["type"] == "topic":
-        logger.info(f"[{run_id}] Manual topic entry found: '{manual['content']}'")
-        script_data = script_generator.generate_script(manual["content"], video_format)
+        topic = manual["content"]
+        logger.info(f"[{run_id}] Manual topic entry found: '{topic}'")
+        script_data = script_generator.generate_script(topic, video_format)
     else:
         logger.info(f"[{run_id}] Manual queue empty. Generating topic via AI...")
         topic = script_generator.generate_topic(video_format)
@@ -125,6 +127,19 @@ def produce_one_video(video_format: str) -> str:
     )
     logger.info(f"[{run_id}] Successfully uploaded to YouTube. Video ID: {video_id}")
 
+    # Step 7: Record Execution History to Database
+    tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
+    db_manager.record_video_history(
+        run_id=run_id,
+        video_format=video_format,
+        topic=topic,
+        title=title,
+        script=script_text,
+        description=description,
+        tags=tags_str,
+        youtube_video_id=video_id
+    )
+
     # Cleanup temporary directories
     shutil.rmtree(clips_dir, ignore_errors=True)
     shutil.rmtree(work_dir / "segments", ignore_errors=True)
@@ -134,6 +149,7 @@ def produce_one_video(video_format: str) -> str:
 
 def main() -> int:
     """Executes the daily video production pipeline."""
+    db_manager.init_db()
     logger.info("=== Starting Daily Pipeline Run ===")
     jobs = (
         [("short", i) for i in range(config.DAILY_SHORTS_COUNT)] +

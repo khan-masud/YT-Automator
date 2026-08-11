@@ -16,6 +16,7 @@ __pycache__/
 
 # Media Outputs & Execution Logs
 output/
+data/*.db
 logs/*.log
 used_topics.txt
 assets/

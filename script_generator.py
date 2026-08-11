@@ -26,16 +26,27 @@ def _extract_text(response) -> str:
 
 
 def generate_topic(video_format: str) -> str:
-    """Generates a single catchy video topic idea for the specified format."""
+    """Generates a unique catchy video topic idea for the specified format, avoiding duplicates."""
+    import db_manager
     length_hint = "a short, punchy fact" if video_format == "short" else "a broader, multi-part topic"
-    prompt = f"""
+    past_topics = db_manager.get_past_topics_for_format(video_format)
+    exclusion_text = ""
+    if past_topics:
+        past_list_str = "\n".join(f"- {t}" for t in past_topics[:30])
+        exclusion_text = f"\nDO NOT suggest any of these previously covered topics for {video_format}:\n{past_list_str}\n"
+
+    for attempt in range(4):
+        prompt = f"""
 You generate YouTube video topics for an educational facts channel.
 Niche: {config.CHANNEL_NICHE}
-Provide ONE single topic idea suitable for {length_hint}.
+Provide ONE single unique topic idea suitable for {length_hint}.{exclusion_text}
 Reply with ONLY the topic title, nothing else. No quotes, no numbering.
 """
-    response = _client.models.generate_content(model=_MODEL, contents=prompt)
-    topic = _extract_text(response).strip('"')
+        response = _client.models.generate_content(model=_MODEL, contents=prompt)
+        topic = _extract_text(response).strip('"\n ')
+        if topic and not db_manager.is_topic_duplicate(topic, video_format):
+            return topic
+
     return topic
 
 

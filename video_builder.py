@@ -135,8 +135,8 @@ def build_video(clips: List[Dict[str, Any]], segment_duration: float, size: Tupl
         "ffmpeg", "-y", "-i", str(silent_video.resolve()), "-i", str(Path(audio_path).resolve()),
         "-vf", f"subtitles='{srt_path.name}':force_style='{subtitle_style}'",
         "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-        "-c:a", "aac", "-b:a", "160k",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
         "-shortest",
         str(out_path.resolve()),
     ], cwd=str(srt_path.parent))

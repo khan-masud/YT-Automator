@@ -60,11 +60,12 @@ def _search_video(query: str, orientation: str) -> Optional[str]:
     if not videos:
         return None
 
+    # Sort descending by resolution and select highest quality HD file
     video_files = sorted(videos[0]["video_files"], key=lambda v: v.get("width", 0), reverse=True)
     for vf in video_files:
-        if vf.get("width", 0) <= 1920:
+        if 1080 <= vf.get("width", 0) <= 3840:
             return vf["link"]
-    return video_files[-1]["link"] if video_files else None
+    return video_files[0]["link"] if video_files else None
 
 
 def _search_photo(query: str) -> Optional[str]:
