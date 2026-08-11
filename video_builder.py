@@ -123,10 +123,13 @@ def build_video(clips: List[Dict[str, Any]], segment_duration: float, size: Tupl
         "-c", "copy", str(silent_video),
     ])
 
-    # Modern YouTube Shorts / Reel subtitle style: Vibrant yellow text with 3px black stroke
+    # Modern YouTube Shorts / Reels subtitle style: Centered near the lower bottom area
+    w, h = size
+    font_size = 55 if h > w else 45
+    margin_v = 280 if h > w else 90
     subtitle_style = (
-        "FontName=Arial,FontSize=22,Bold=1,PrimaryColour=&H00FFFF&,"
-        "OutlineColour=&H000000&,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginV=140"
+        f"PlayResX={w},PlayResY={h},FontName=Arial,FontSize={font_size},Bold=1,"
+        f"PrimaryColour=&H00FFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=4,Shadow=1,Alignment=2,MarginV={margin_v}"
     )
     _run([
         "ffmpeg", "-y", "-i", str(silent_video.resolve()), "-i", str(Path(audio_path).resolve()),
