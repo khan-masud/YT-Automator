@@ -4,6 +4,8 @@ on:
   schedule:
     # Triggers daily at 12:00 UTC (6:00 PM BST)
     - cron: '0 12 * * *'
+  push:
+    branches: [ main, master ]
   workflow_dispatch: # Enables manual trigger button on GitHub UI
 
 jobs:
