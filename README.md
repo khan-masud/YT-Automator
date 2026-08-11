@@ -167,12 +167,6 @@ Once configured, GitHub Actions will automatically execute daily at **12:00 UTC*
 
 ---
 
-## Security
-
-- All local secrets (`.env`, `client_secrets.json`, `youtube_token.json`) are excluded from Git tracking via `.gitignore`.
-- Video media outputs (`output/`) and log files (`logs/`) are strictly ignored to prevent sensitive data leakage.
-
----
 
 ## License
 

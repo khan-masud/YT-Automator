@@ -36,23 +36,7 @@ jobs:
           YOUTUBE_CLIENT_SECRETS: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
         run: |
-          python -c "
-import os
-
-with open('.env', 'w', encoding='utf-8') as f:
-    f.write(f'GEMINI_API_KEY={os.getenv(\"GEMINI_API_KEY\", \"\")}\n')
-    f.write(f'PEXELS_API_KEY={os.getenv(\"PEXELS_API_KEY\", \"\")}\n')
-    f.write('CHANNEL_NICHE=interesting facts and educational content for a general audience\n')
-    f.write('DAILY_SHORTS_COUNT=1\n')
-    f.write('DAILY_LONGFORM_COUNT=1\n')
-    f.write('YOUTUBE_PRIVACY_STATUS=private\n')
-
-with open('client_secrets.json', 'w', encoding='utf-8') as f:
-    f.write(os.getenv('YOUTUBE_CLIENT_SECRETS', ''))
-
-with open('youtube_token.json', 'w', encoding='utf-8') as f:
-    f.write(os.getenv('YOUTUBE_TOKEN', ''))
-"
+          python setup_secrets.py
 
       - name: Execute Daily Video Pipeline
         run: |
