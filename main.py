@@ -29,6 +29,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 import config
+import db_manager
 import topic_manager
 import script_generator
 import tts_generator
