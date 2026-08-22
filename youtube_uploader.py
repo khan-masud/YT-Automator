@@ -19,16 +19,26 @@ def _get_credentials() -> Credentials:
     """Retrieves or refreshes valid OAuth2 credentials for YouTube Data API v3."""
     creds = None
     if config.YOUTUBE_TOKEN_FILE.exists():
-        creds = Credentials.from_authorized_user_file(str(config.YOUTUBE_TOKEN_FILE), SCOPES)
+        try:
+            creds = Credentials.from_authorized_user_file(str(config.YOUTUBE_TOKEN_FILE), SCOPES)
+        except Exception:
+            creds = None
 
     if not creds or not creds.valid:
+        refreshed = False
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+                refreshed = True
+            except Exception:
+                refreshed = False
+
+        if not refreshed:
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(config.YOUTUBE_CLIENT_SECRETS_FILE), SCOPES
             )
             creds = flow.run_local_server(port=0)
+
         config.YOUTUBE_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
 
     return creds
