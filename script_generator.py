@@ -1,33 +1,41 @@
 """
 Script Generator Module.
 
-Uses Google Gemini API to:
+Uses Google Gemini API via resilient multi-model cascade to:
 1. Auto-generate video topics when the manual queue is empty.
 2. Generate structured scripts, catchy titles, descriptions, and tags.
 """
 import json
-from typing import Dict, Any
-from google import genai
+import logging
+from typing import Dict, Any, List
 import config
+import db_manager
+import ai_client
 
-_client = genai.Client(api_key=config.GEMINI_API_KEY)
-_MODEL = "gemini-3.5-flash-lite"
+logger = logging.getLogger("script_generator")
 
+# Evergreen fallback topics if AI is completely unavailable
+_FALLBACK_TOPICS_SHORT = [
+    "Why the human brain uses 20% of total body energy",
+    "How honey never spoils even after thousands of years",
+    "Why astronauts grow taller in outer space",
+    "The secret reason flamingos stand on one leg",
+    "How trees communicate underground through fungi networks",
+    "Why deep sea creatures glow in total darkness",
+    "How lightning strikes can reach five times hotter than the sun",
+]
 
-def _extract_text(response) -> str:
-    """Extracts text content from model response without non-text part warnings."""
-    if hasattr(response, "candidates") and response.candidates:
-        candidate = response.candidates[0]
-        if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
-            text_parts = [part.text for part in candidate.content.parts if hasattr(part, "text") and part.text]
-            if text_parts:
-                return "".join(text_parts).strip()
-    return response.text.strip() if hasattr(response, "text") and response.text else ""
+_FALLBACK_TOPICS_LONG = [
+    "The engineering marvels of the ancient Roman aqueducts",
+    "How deep sea exploration revealed Earth's most extreme ecosystems",
+    "The complete science of black holes and event horizons explained",
+    "How the human immune system fights off billions of pathogens daily",
+    "The mystery of the James Webb Space Telescope's deepest discoveries",
+]
 
 
 def generate_topic(video_format: str) -> str:
     """Generates a unique catchy video topic idea for the specified format, avoiding duplicates."""
-    import db_manager
     length_hint = "a short, punchy fact" if video_format == "short" else "a broader, multi-part topic"
     past_topics = db_manager.get_past_topics_for_format(video_format)
     exclusion_text = ""
@@ -35,19 +43,33 @@ def generate_topic(video_format: str) -> str:
         past_list_str = "\n".join(f"- {t}" for t in past_topics[:30])
         exclusion_text = f"\nDO NOT suggest any of these previously covered topics for {video_format}:\n{past_list_str}\n"
 
-    for attempt in range(4):
-        prompt = f"""
+    prompt = f"""
 You generate YouTube video topics for an educational facts channel.
 Niche: {config.CHANNEL_NICHE}
 Provide ONE single unique topic idea suitable for {length_hint}.{exclusion_text}
 Reply with ONLY the topic title, nothing else. No quotes, no numbering.
 """
-        response = _client.models.generate_content(model=_MODEL, contents=prompt)
-        topic = _extract_text(response).strip('"\n ')
-        if topic and not db_manager.is_topic_duplicate(topic, video_format):
-            return topic
+    for attempt in range(3):
+        try:
+            raw_topic = ai_client.generate_content_with_retry(prompt, expect_json=False)
+            topic = raw_topic.strip('"\n #*')
+            # Extract first line if multiple lines returned
+            if "\n" in topic:
+                topic = topic.split("\n")[0].strip('"\n #*')
 
-    return topic
+            if topic and not db_manager.is_topic_duplicate(topic, video_format):
+                return topic
+        except Exception as e:
+            logger.warning(f"Topic generation attempt {attempt + 1} failed: {e}")
+
+    # Emergency fallback to curated evergreen topics if AI fails
+    logger.warning("AI topic generation exhausted. Using emergency curated fallback topic...")
+    pool = _FALLBACK_TOPICS_SHORT if video_format == "short" else _FALLBACK_TOPICS_LONG
+    for fb in pool:
+        if not db_manager.is_topic_duplicate(fb, video_format):
+            return fb
+
+    return pool[0]
 
 
 def generate_script(topic: str, video_format: str) -> Dict[str, Any]:
@@ -83,13 +105,27 @@ Respond ONLY in valid JSON format:
   "tags": ["...", "...", "...", "...", "..."]
 }}
 """
-    response = _client.models.generate_content(model=_MODEL, contents=prompt)
-    raw = _extract_text(response)
-    
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-
-    data = json.loads(raw.strip())
-    return data
+    try:
+        raw_json = ai_client.generate_content_with_retry(prompt, expect_json=True)
+        data = json.loads(raw_json)
+        # Ensure all required keys exist
+        if "title" not in data or not data["title"]:
+            data["title"] = topic[:80]
+        if "script" not in data or not data["script"]:
+            raise ValueError("Generated JSON missing 'script' field.")
+        if "description" not in data:
+            data["description"] = f"Learn all about {topic}. Subscribe for more daily facts!"
+        if "tags" not in data or not isinstance(data["tags"], list):
+            data["tags"] = ["facts", "education", "science", "learn", "ytshorts"]
+        return data
+    except Exception as e:
+        logger.error(f"Structured script generation failed ({e}). Generating fallback script...")
+        # Fallback to direct text prompt if JSON formatting fails
+        direct_prompt = f"Write an educational spoken narration about: {topic}. Length: {word_count}. Spoken words only."
+        fallback_text = ai_client.generate_content_with_retry(direct_prompt, expect_json=False)
+        return {
+            "title": topic[:80],
+            "script": fallback_text.strip(),
+            "description": f"Exploring {topic}. Subscribe for more fascinating educational content!",
+            "tags": ["education", "facts", "curiosity", "learning", "knowledge"]
+        }

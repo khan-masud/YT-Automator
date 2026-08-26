@@ -11,13 +11,13 @@ YT Automator is designed for lightweight, high-performance automated content wor
 ```
 +-------------------+      +-------------------+      +-------------------+
 | Topic Resolution  | ---> | Script Generation | ---> | TTS Voiceover     |
-| (Manual / AI)     |      | (Google Gemini)   |      | (Edge-TTS / gTTS) |
+| (Manual / AI)     |      | (Gemini 3.x/2.5)  |      | (Edge-TTS / gTTS) |
 +-------------------+      +-------------------+      +-------------------+
                                                                 |
 +-------------------+      +-------------------+                v
 | YouTube Upload    | <--- | FFmpeg Assembly   | <--- +-------------------+
 | (YouTube Data API)|      | & Subtitle Burn   |      | Visual Fetching   |
-+-------------------+      +-------------------+      | (Pexels API)      |
++-------------------+      +-------------------+      | (Pexels / Fallback)|
                                                       +-------------------+
 ```
 
@@ -25,12 +25,14 @@ YT Automator is designed for lightweight, high-performance automated content wor
 
 ## Core Capabilities
 
-- **Intelligent Topic & Script Synthesis**: Leverages Google Gemini models to generate engaging scripts, high-CTR titles, SEO-optimized descriptions, and tags.
-- **Manual Override Queue**: Accepts custom topics or pre-written scripts via `topics_queue.txt` before falling back to AI generation.
-- **Synchronized Subtitle Overlays**: Produces dynamic word-by-word SRT captions styled with modern yellow text and solid black outlines for YouTube Shorts and Reels.
-- **Context-Aware Asset Retrieval**: Queries Pexels API for relevant stock footage and high-resolution images with Ken Burns zoom effects.
-- **Direct FFmpeg Rendering**: Composes 30 FPS MP4 video streams, merges AAC voiceover audio, and burns subtitle layers directly via FFmpeg.
-- **Automated YouTube Publishing**: Handles OAuth2 authentication, token renewal, and video uploads using YouTube Data API v3.
+- **Resilient Multi-Model Cascade**: Leverages Google Gemini models with automatic cascading priority (`gemini-3.5-flash-lite` $\rightarrow$ `gemini-2.5-flash` $\rightarrow$ `gemini-2.0-flash` $\rightarrow$ `gemini-1.5-flash`). Handles `503 Service Unavailable`, `429 Rate Limits`, and network drops with exponential backoff & jitter.
+- **Intelligent Topic & Script Synthesis**: Generates engaging spoken scripts, high-CTR titles, SEO-optimized descriptions, and relevant tags with structured JSON validation.
+- **Emergency Offline Fallbacks**: Includes curated evergreen educational topics and heuristic rule-based visual scene extractors to guarantee 100% pipeline uptime even during 3rd-party API outages.
+- **Manual Override Queue**: Accepts custom topics or pre-written scripts via `topics_queue.txt` or SQLite database queue before falling back to AI generation.
+- **Synchronized Subtitle Overlays**: Produces dynamic word-by-word SRT captions styled with modern yellow text (`#FFFF00`) and solid black outlines for high-retention YouTube Shorts and Reels.
+- **Context-Aware Asset Retrieval**: Queries Pexels API for relevant stock footage and high-resolution images with Ken Burns dynamic zoom effects.
+- **Direct FFmpeg Rendering**: Composes 30 FPS MP4 video streams, merges AAC voiceover audio, and burns subtitle layers directly via native FFmpeg subprocesses.
+- **Automated YouTube Publishing**: Handles OAuth2 authentication, automatic token renewal, and video uploads using YouTube Data API v3.
 - **GitHub Actions CI/CD Integration**: Supports 100% cloud-hosted daily execution via scheduled GitHub Actions workflows.
 
 ---
@@ -43,13 +45,17 @@ yt_automation/
 │   └── workflows/
 │       └── daily_upload.yml       # Scheduled GitHub Actions CI/CD workflow
 ├── assets/                        # Local temporary asset storage
+├── data/                          # SQLite persistent database storage
 ├── logs/                          # Pipeline execution log files
 ├── output/                        # Rendered MP4 output directories
 ├── .env.example                   # Environment configuration template
 ├── .gitignore                     # Git exclusion rules for secrets and outputs
+├── ai_client.py                   # Resilient Gemini AI client with multi-model cascade
 ├── config.py                      # Centralized configuration and path loader
+├── db_manager.py                  # SQLite database manager and topic deduplication
 ├── main.py                        # Main pipeline orchestrator script
-├── script_generator.py            # Gemini API topic and script generator
+├── script_generator.py            # Topic and script synthesis module
+├── setup_secrets.py               # GitHub Secrets bootstrap module
 ├── topic_manager.py               # Manual queue manager
 ├── tts_generator.py               # Audio voiceover and boundary timing engine
 ├── video_builder.py               # FFmpeg video assembly and caption builder
@@ -99,8 +105,12 @@ cp .env.example .env
 Edit `.env` and fill in your credentials:
 
 ```env
+# API Keys & Model Cascade
 GEMINI_API_KEY=your_actual_gemini_api_key
+GEMINI_MODELS=gemini-3.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash
 PEXELS_API_KEY=your_actual_pexels_api_key
+
+# YouTube Configuration & Channel Settings
 YOUTUBE_CLIENT_SECRETS_FILE=client_secrets.json
 CHANNEL_NICHE=interesting facts and educational content for a general audience
 DAILY_SHORTS_COUNT=1
@@ -142,7 +152,7 @@ topic|long|The history of ancient Roman aqueducts
 script|short|Did you know your brain uses 20 percent of your body energy? That's more than any other organ...
 ```
 
-Processed queue items are automatically archived to `used_topics.txt`.
+Processed queue items are automatically archived to `used_topics.txt` and synced with the SQLite database.
 
 ---
 
@@ -166,7 +176,6 @@ YT Automator includes a pre-configured GitHub Actions workflow located at `.gith
 Once configured, GitHub Actions will automatically execute daily at **12:00 UTC** without requiring active local machines or servers.
 
 ---
-
 
 ## License
 
