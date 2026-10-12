@@ -46,9 +46,7 @@ def _get_credentials() -> Credentials:
 
 def upload_video(video_path: str, title: str, description: str, tags: List[str],
                  is_short: bool, privacy_status: Optional[str] = None) -> str:
-    """
-    Uploads a video to YouTube and returns the assigned Video ID.
-    """
+    """Uploads a video and declares it as made for kids for this preschool channel."""
     creds = _get_credentials()
     youtube = build("youtube", "v3", credentials=creds)
 
@@ -63,11 +61,11 @@ def upload_video(video_path: str, title: str, description: str, tags: List[str],
             "title": title[:100],
             "description": description[:5000],
             "tags": tags,
-            "categoryId": "27",  # Education category
+            "categoryId": "27",
         },
         "status": {
             "privacyStatus": privacy_status or config.YOUTUBE_PRIVACY_STATUS,
-            "selfDeclaredMadeForKids": False,
+            "selfDeclaredMadeForKids": True,
         },
     }
 
