@@ -6,7 +6,7 @@ Pipeline workflow:
 2. Auto-generates topics/scripts via Google Gemini if the queue is empty.
 3. Generates voiceover audio via Edge-TTS / gTTS.
 4. Builds SRT captions with modern YouTube Shorts styling.
-5. Fetches stock visuals from Pexels API.
+5. Loads local visuals from assets/visuals/ (no stock API).
 6. Renders final MP4 video via FFmpeg.
 7. Uploads video to YouTube via YouTube Data API v3.
 """
@@ -111,7 +111,7 @@ def produce_one_video(video_format: str) -> str:
     num_clips = max(3, int(duration // settings["segment_duration"]) + 1)
     clips_dir = work_dir / "clips"
     clips = visual_fetcher.fetch_visuals_for_script(script_text, num_clips, settings["orientation"], clips_dir)
-    logger.info(f"[{run_id}] Retrieved {len(clips)} visual assets from Pexels.")
+    logger.info(f"[{run_id}] Loaded {len(clips)} local visual assets.")
 
     per_segment = duration / len(clips)
 
