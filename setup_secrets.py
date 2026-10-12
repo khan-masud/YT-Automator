@@ -18,15 +18,12 @@ logger = logging.getLogger("setup_secrets")
 
 def setup_secrets() -> None:
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-    pexels_key = os.getenv("PEXELS_API_KEY", "").strip()
     yt_client_secrets = os.getenv("YOUTUBE_CLIENT_SECRETS", "").strip()
     yt_token = os.getenv("YOUTUBE_TOKEN", "").strip()
 
     missing_secrets = []
     if not gemini_key:
         missing_secrets.append("GEMINI_API_KEY")
-    if not pexels_key:
-        missing_secrets.append("PEXELS_API_KEY")
     if not yt_client_secrets:
         missing_secrets.append("YOUTUBE_CLIENT_SECRETS")
     if not yt_token:
@@ -43,7 +40,6 @@ def setup_secrets() -> None:
     # Write .env file with channel-specific settings. Uploads stay private by default.
     with open(".env", "w", encoding="utf-8") as f:
         f.write(f"GEMINI_API_KEY={gemini_key}\n")
-        f.write(f"PEXELS_API_KEY={pexels_key}\n")
         f.write("CHANNEL_NICHE=preschool nursery rhymes and early learning songs for children ages 2 to 6\n")
         f.write("DAILY_SHORTS_COUNT=1\n")
         f.write("DAILY_LONGFORM_COUNT=1\n")
