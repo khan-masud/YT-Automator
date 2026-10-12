@@ -46,7 +46,7 @@ def setup_secrets() -> None:
         f.write(f"PEXELS_API_KEY={pexels_key}\n")
         f.write("CHANNEL_NICHE=preschool nursery rhymes and early learning songs for children ages 2 to 6\n")
         f.write("DAILY_SHORTS_COUNT=1\n")
-        f.write("DAILY_LONGFORM_COUNT=0\n")
+        f.write("DAILY_LONGFORM_COUNT=1\n")
         privacy_status = os.getenv("YOUTUBE_PRIVACY_STATUS", "private").strip().lower()
         if privacy_status not in {"private", "unlisted", "public"}:
             logger.error("YOUTUBE_PRIVACY_STATUS must be private, unlisted, or public.")
