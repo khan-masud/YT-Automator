@@ -11,7 +11,6 @@ load_dotenv(BASE_DIR / ".env")
 
 # API Keys & Secrets
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 YOUTUBE_CLIENT_SECRETS_FILE = BASE_DIR / os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "client_secrets.json")
 YOUTUBE_TOKEN_FILE = BASE_DIR / "youtube_token.json"
 
