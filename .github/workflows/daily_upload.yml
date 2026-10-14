@@ -1,16 +1,13 @@
-name: Daily YouTube Automation Pipeline
+name: Happy Little Stars Pipeline (Manual Only)
 
 on:
-  schedule:
-    # Triggers daily at 12:00 UTC (6:00 PM BST)
-    - cron: '0 12 * * *'
-  push:
-    branches: [ main, master ]
-  workflow_dispatch: # Enables manual trigger button on GitHub UI
+  workflow_dispatch: # Manual runs only; no scheduled or push-triggered publishing
 
 jobs:
-  generate-and-upload:
+  generate-and-review:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -23,42 +20,40 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      - name: Cache FFmpeg Binary
-        id: cache-ffmpeg
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/bin/ffmpeg
-            /usr/bin/ffprobe
-          key: ffmpeg-binary-ubuntu-latest
-
-      - name: Install FFmpeg (Cache Fallback)
-        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+      - name: Install FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
       - name: Install Python Dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Cache & Restore SQLite Database State
-        uses: actions/cache@v4
-        with:
-          path: data/yt_automator.db
-          key: sqlite-db-v1-${{ github.run_id }}
-          restore-keys: |
-            sqlite-db-v1-
-
-      - name: Configure Environment & Secret Credentials
+      - name: Configure Safe Test Run
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          YOUTUBE_CLIENT_SECRETS: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
-          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
-        run: |
-          python setup_secrets.py
+          UPLOAD_TO_YOUTUBE: 'false'
+          DAILY_SHORTS_COUNT: '1'
+          DAILY_LONGFORM_COUNT: '0'
+          YOUTUBE_PRIVACY_STATUS: 'private'
+        run: python setup_secrets.py
 
-      - name: Execute Daily Video Pipeline
-        run: |
-          python main.py
+      - name: Generate One Short (Upload Disabled)
+        env:
+          UPLOAD_TO_YOUTUBE: 'false'
+          DAILY_SHORTS_COUNT: '1'
+          DAILY_LONGFORM_COUNT: '0'
+        run: python main.py
+
+      - name: Save Video, Captions, Voiceover, Logs, and Database
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: happy-little-stars-test-output
+          path: |
+            output/**/*.mp4
+            output/**/*.srt
+            output/**/*.mp3
+            logs/**
+            data/yt_automator.db
+          if-no-files-found: warn
+          retention-days: 7
