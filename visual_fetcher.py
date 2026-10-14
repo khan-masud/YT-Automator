@@ -1,8 +1,7 @@
-"""
-Local Visual Asset Loader.
+"""Local visual asset loader for Happy Little Stars.
 
-No stock-footage service or API key is used. Add approved images/videos to
-assets/visuals/; the pipeline cycles through them for each generated video.
+Place approved images and videos in assets/visuals/. The pipeline fails clearly
+when that directory is empty instead of silently creating blank videos.
 """
 import logging
 import shutil
@@ -23,27 +22,23 @@ def fetch_visuals_for_script(
     orientation: str,
     work_dir: Path,
 ) -> List[Dict[str, Any]]:
-    """
-    Copies local assets into the working directory.
-    Put the channel's consistent character artwork and backgrounds in
-    assets/visuals/. If no files exist, blank segments are returned safely.
-    """
-    del script, orientation  # Local asset selection does not need API queries.
+    """Copy approved local assets into a video's temporary working directory."""
+    del script, orientation
     work_dir.mkdir(parents=True, exist_ok=True)
     assets_dir = config.ASSETS_DIR / "visuals"
     assets_dir.mkdir(parents=True, exist_ok=True)
 
     candidates = sorted(
         p for p in assets_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+        if p.is_file() and p.suffix.lower() in (IMAGE_EXTENSIONS | VIDEO_EXTENSIONS)
     )
 
     if not candidates:
-        logger.warning(
-            "No local visuals found. Add character images/videos to assets/visuals/; "
-            "no external stock API will be called."
+        raise RuntimeError(
+            "No visual assets found in assets/visuals/. Add approved child-friendly "
+            "images/videos before running the pipeline; upload has been stopped to "
+            "prevent a blank video."
         )
-        return [{"path": None, "type": "blank"} for _ in range(num_clips)]
 
     results: List[Dict[str, Any]] = []
     for i in range(num_clips):
@@ -53,5 +48,5 @@ def fetch_visuals_for_script(
         asset_type = "video" if source.suffix.lower() in VIDEO_EXTENSIONS else "image"
         results.append({"path": str(target), "type": asset_type})
 
-    logger.info("Loaded %d local visual assets from %s", len(results), assets_dir)
+    logger.info("Loaded %d visual clips from %s", len(results), assets_dir)
     return results
