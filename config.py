@@ -14,15 +14,18 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 YOUTUBE_CLIENT_SECRETS_FILE = BASE_DIR / os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "client_secrets.json")
 YOUTUBE_TOKEN_FILE = BASE_DIR / "youtube_token.json"
 
-# Gemini AI Multi-Model Cascade (Prioritizes 3.x models first, cascading to 2.5, 2.0, 1.5)
-_models_env = os.getenv("GEMINI_MODELS", "gemini-3.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash")
+# Gemini AI Multi-Model Cascade
+_models_env = os.getenv("GEMINI_MODELS", "gemini-2.5-flash,gemini-2.0-flash")
 GEMINI_MODELS = [m.strip() for m in _models_env.split(",") if m.strip()]
 
 # Channel & Production Settings
-CHANNEL_NICHE = os.getenv("CHANNEL_NICHE", "interesting facts and educational content")
+CHANNEL_NICHE = os.getenv("CHANNEL_NICHE", "preschool nursery rhymes and early learning songs for children ages 2 to 6")
 DAILY_SHORTS_COUNT = int(os.getenv("DAILY_SHORTS_COUNT", "1"))
 DAILY_LONGFORM_COUNT = int(os.getenv("DAILY_LONGFORM_COUNT", "1"))
-YOUTUBE_PRIVACY_STATUS = os.getenv("YOUTUBE_PRIVACY_STATUS", "public")
+# Safe default: nothing becomes public unless explicitly configured.
+YOUTUBE_PRIVACY_STATUS = os.getenv("YOUTUBE_PRIVACY_STATUS", "private").strip().lower()
+if YOUTUBE_PRIVACY_STATUS not in {"private", "unlisted", "public"}:
+    raise ValueError("YOUTUBE_PRIVACY_STATUS must be private, unlisted, or public")
 
 # Directory Paths
 OUTPUT_DIR = BASE_DIR / "output"
@@ -35,9 +38,8 @@ USED_TOPICS_FILE = BASE_DIR / "used_topics.txt"
 
 # Voice & Video Specifications
 TTS_VOICE = "en-US-ChristopherNeural"
-SHORTS_SIZE = (1080, 1920)   # 9:16 aspect ratio
-LONGFORM_SIZE = (1920, 1080)  # 16:9 aspect ratio
+SHORTS_SIZE = (1080, 1920)
+LONGFORM_SIZE = (1920, 1080)
 
-# Ensure necessary directories exist
 for directory in (OUTPUT_DIR, LOGS_DIR, ASSETS_DIR, DATA_DIR):
     directory.mkdir(parents=True, exist_ok=True)
