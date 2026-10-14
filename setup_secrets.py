@@ -1,4 +1,7 @@
-"""Validate and materialize GitHub Actions secrets for CI/CD runs."""
+"""Validate and materialize GitHub Actions secrets for CI/CD runs.
+
+Visuals are loaded only from assets/visuals/. No Pexels API key is required.
+"""
 import json
 import os
 import sys
