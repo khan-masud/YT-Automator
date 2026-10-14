@@ -4,8 +4,10 @@ on:
   workflow_dispatch: # Manual runs only; no scheduled or push-triggered publishing
 
 jobs:
-  generate-and-upload:
+  generate-and-review:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -24,17 +26,34 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       - name: Install Python Dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Configure Environment & Secret Credentials
+      - name: Configure Safe Test Run
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          YOUTUBE_CLIENT_SECRETS: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
-          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
-        run: |
-          python setup_secrets.py
+          UPLOAD_TO_YOUTUBE: 'false'
+          DAILY_SHORTS_COUNT: '1'
+          DAILY_LONGFORM_COUNT: '0'
+          YOUTUBE_PRIVACY_STATUS: 'private'
+        run: python setup_secrets.py
 
-      - name: Execute Daily Video Pipeline
-        run: |
-          python main.py
+      - name: Generate One Short (Upload Disabled)
+        env:
+          UPLOAD_TO_YOUTUBE: 'false'
+          DAILY_SHORTS_COUNT: '1'
+          DAILY_LONGFORM_COUNT: '0'
+        run: python main.py
+
+      - name: Save Video, Captions, Voiceover, Logs, and Database
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: happy-little-stars-test-output
+          path: |
+            output/**/*.mp4
+            output/**/*.srt
+            output/**/*.mp3
+            logs/**
+            data/yt_automator.db
+          if-no-files-found: warn
+          retention-days: 7
