@@ -1,19 +1,24 @@
-"""
-Setup Secrets Module for CI/CD environment (GitHub Actions).
-
-Reads GitHub Secrets from environment variables and writes them to local
-configuration files (.env, client_secrets.json, youtube_token.json).
-"""
+"""Validate and materialize GitHub Actions secrets for CI/CD runs."""
+import json
 import os
 import sys
 import logging
+from pathlib import Path
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger("setup_secrets")
+
+
+def _parse_json_secret(name: str, value: str) -> dict:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        logger.error("GitHub secret %s is not valid JSON. Paste the complete JSON file contents, not a filename or a partial secret.", name)
+        raise SystemExit(1) from exc
+    if not isinstance(parsed, dict):
+        logger.error("GitHub secret %s must contain a JSON object.", name)
+        sys.exit(1)
+    return parsed
 
 
 def setup_secrets() -> None:
@@ -21,42 +26,37 @@ def setup_secrets() -> None:
     yt_client_secrets = os.getenv("YOUTUBE_CLIENT_SECRETS", "").strip()
     yt_token = os.getenv("YOUTUBE_TOKEN", "").strip()
 
-    missing_secrets = []
-    if not gemini_key:
-        missing_secrets.append("GEMINI_API_KEY")
-    if not yt_client_secrets:
-        missing_secrets.append("YOUTUBE_CLIENT_SECRETS")
-    if not yt_token:
-        missing_secrets.append("YOUTUBE_TOKEN")
-
-    if missing_secrets:
-        logger.error(f"Missing required GitHub Secrets: {', '.join(missing_secrets)}")
-        logger.error(
-            "Action Required: Please go to GitHub Repository -> Settings -> Secrets and variables -> Actions "
-            "and add the missing secret keys."
-        )
+    missing = [name for name, value in (("GEMINI_API_KEY", gemini_key), ("YOUTUBE_CLIENT_SECRETS", yt_client_secrets), ("YOUTUBE_TOKEN", yt_token)) if not value]
+    if missing:
+        logger.error("Missing required GitHub Actions secrets: %s", ", ".join(missing))
         sys.exit(1)
 
-    # Write .env file with channel-specific settings. Uploads stay private by default.
-    with open(".env", "w", encoding="utf-8") as f:
-        f.write(f"GEMINI_API_KEY={gemini_key}\n")
-        f.write("CHANNEL_NICHE=preschool nursery rhymes and early learning songs for children ages 2 to 6\n")
-        f.write("DAILY_SHORTS_COUNT=1\n")
-        f.write("DAILY_LONGFORM_COUNT=1\n")
-        privacy_status = os.getenv("YOUTUBE_PRIVACY_STATUS", "private").strip().lower()
-        if privacy_status not in {"private", "unlisted", "public"}:
-            logger.error("YOUTUBE_PRIVACY_STATUS must be private, unlisted, or public.")
-            sys.exit(1)
-        f.write(f"YOUTUBE_PRIVACY_STATUS={privacy_status}\n")
+    client_data = _parse_json_secret("YOUTUBE_CLIENT_SECRETS", yt_client_secrets)
+    token_data = _parse_json_secret("YOUTUBE_TOKEN", yt_token)
+    if not ("installed" in client_data or "web" in client_data):
+        logger.error("YOUTUBE_CLIENT_SECRETS must be the complete Google OAuth client JSON containing an 'installed' or 'web' object.")
+        sys.exit(1)
+    if not token_data.get("refresh_token") or not token_data.get("client_id") or not token_data.get("client_secret"):
+        logger.error("YOUTUBE_TOKEN must be an authorized-user token JSON with refresh_token, client_id, and client_secret. A client-secrets JSON is not a token.")
+        sys.exit(1)
 
-    # Write credential files only in the temporary GitHub Actions runner.
-    with open("client_secrets.json", "w", encoding="utf-8") as f:
-        f.write(yt_client_secrets)
+    privacy_status = os.getenv("YOUTUBE_PRIVACY_STATUS", "private").strip().lower()
+    if privacy_status not in {"private", "unlisted", "public"}:
+        logger.error("YOUTUBE_PRIVACY_STATUS must be private, unlisted, or public.")
+        sys.exit(1)
 
-    with open("youtube_token.json", "w", encoding="utf-8") as f:
-        f.write(yt_token)
-
-    logger.info("Successfully configured environment files for CI/CD execution.")
+    Path(".env").write_text(
+        f"GEMINI_API_KEY={gemini_key}\n"
+        "CHANNEL_NICHE=preschool nursery rhymes and early learning songs for children ages 2 to 6\n"
+        "DAILY_SHORTS_COUNT=1\n"
+        "DAILY_LONGFORM_COUNT=1\n"
+        f"YOUTUBE_PRIVACY_STATUS={privacy_status}\n",
+        encoding="utf-8",
+    )
+    # These files are created only on the temporary runner and must never be committed.
+    Path("client_secrets.json").write_text(json.dumps(client_data), encoding="utf-8")
+    Path("youtube_token.json").write_text(json.dumps(token_data), encoding="utf-8")
+    logger.info("Secrets validated and temporary credential files configured successfully.")
 
 
 if __name__ == "__main__":
