@@ -14,8 +14,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 YOUTUBE_CLIENT_SECRETS_FILE = BASE_DIR / os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "client_secrets.json")
 YOUTUBE_TOKEN_FILE = BASE_DIR / "youtube_token.json"
 
-# Gemini AI Multi-Model Cascade
-_models_env = os.getenv("GEMINI_MODELS", "gemini-2.5-flash,gemini-2.0-flash")
+# Gemini AI model cascade. Use currently supported model IDs.
+_models_env = os.getenv("GEMINI_MODELS", "gemini-3.8-flash")
 GEMINI_MODELS = [m.strip() for m in _models_env.split(",") if m.strip()]
 
 # Channel & Production Settings
