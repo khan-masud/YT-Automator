@@ -1,4 +1,4 @@
-""""
+"""
 Configuration module for YouTube Automation.
 Loads settings, API keys, and environment variables.
 """
@@ -42,4 +42,3 @@ LONGFORM_SIZE = (1920, 1080)
 
 for directory in (OUTPUT_DIR, LOGS_DIR, ASSETS_DIR, DATA_DIR):
     directory.mkdir(parents=True, exist_ok=True)
-"
